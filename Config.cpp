@@ -106,13 +106,17 @@ void Config::initializeConfigData(map<string, string> parser_output) {
         cerr << "\nError! " << rtr.what() << "\n";
         exit(EXIT_FAILURE);
     }
+
 }
 //Public Methods
 
 Config::Config(){
-
+    pthread_mutex_init(&config_access, NULL);
 }
+
 void Config::readFile(string file_name){
+    pthread_mutex_lock(&config_access);
+
     ConfigParser * config_generator;
 
     map<string, string> parser_output;
@@ -124,23 +128,27 @@ void Config::readFile(string file_name){
     this->initializeConfigData(parser_output);
     delete config_generator;
     config_generator = nullptr;
+    pthread_mutex_unlock(&config_access);
 
 }
 
 int Config::getCycleTime(string type) const{
+    pthread_mutex_lock(&config_access);
     int cycle_time;
     try{
         cycle_time = cycle_times.at(type);
     }
     catch(const out_of_range& oor){
-        cerr << "\nIncorrect Cycle Time Descriptor" << type << endl;
+        cerr << "\nIncorrect Cycle Time Descriptor " << type << endl;
         exit(EXIT_FAILURE);
     }
+    pthread_mutex_unlock(&config_access);
 
-    return cycle_time;
+return cycle_time;
 }
 
 string Config::getMiscConfigDetail(string type) const {
+    pthread_mutex_lock(&config_access);
     string config_detail;
     try{
         config_detail = misc_configuration_details.at(type);
@@ -150,6 +158,7 @@ string Config::getMiscConfigDetail(string type) const {
         exit(EXIT_FAILURE);
 
 }
+    pthread_mutex_unlock(&config_access);
 
     return config_detail;
 }

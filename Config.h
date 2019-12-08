@@ -38,6 +38,7 @@ File Purpose: To define the Simulator class that serves as the body of the progr
 #include <string>
 #include <map>
 #include <utility>
+#include <pthread.h>
 
 using namespace std;
 
@@ -45,6 +46,7 @@ class Config {
 private:
     map <string, int> cycle_times;
     map <string, string> misc_configuration_details;
+    mutable pthread_mutex_t config_access;
 
 
     void initializeConfigData(map<string, string> parser_output); //Called inside of "readFile(string file_name)." Copies data from the parser into the proper data structures;

@@ -58,20 +58,33 @@ private:
     static nanoseconds start_time;
     static int size;
     static PCB pcb;
-    static pthread_t tinput;
-    static pthread_t toutput;
+    static pthread_t keyboard_t;
+    static pthread_t mouse_t;
+    static pthread_t monitor_t;
+    static pthread_t * harddrive_t;
+    static pthread_t * printer_t;
     static pthread_mutex_t keyboard;
     static pthread_mutex_t mouse;
     static pthread_mutex_t monitor;
     static pthread_mutex_t harddrive;
     static pthread_mutex_t printer;
+    static pthread_mutex_t output_queue_m;
     static Semaphore harddrive_s;
     static Semaphore printer_s;
     static int handled_processes;
     static string file_output;
     static float getTimeStamp();
-    static void *ProcessInput(void *inputtype);
-    static void *ProcessOutput(void *outputtype);
+    void ProcessInput(tuple<char, string, int> instruction);
+    void ProcessOutput(tuple<char, string, int> instruction);
+
+    static void * handlePrinter(void * num_cycles);
+    static void * handleHarddrive(void * hdd_block);
+    static void * handleMonitor(void * num_cycles);
+    static void * handleMouse(void * num_cycles);
+    static void * handleKeyboard(void * num_cycles);
+
+    static void pushToOutput(string s);
+
     long int cur_mem;
     void processMemory(tuple<char, string, int> instruction);
     void processProcessRun(tuple<char, string, int> instruction);

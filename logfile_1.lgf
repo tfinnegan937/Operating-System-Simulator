@@ -31,51 +31,42 @@ P{run}5 - 25 ms
 P{run}5 - 25 ms
 O{hard drive}6 - 900 ms
 P{run}18 - 90 ms
-0.002745 - Simulator program starting
-0.022202 - OS: preparing process 1
-0.025428 - OS: starting process 1
-0.027983 - Process 1: start processing action
-1.2668 - Process 1: end processing action
-3.23092 - Process 1: memory allocated at 0x80
-3.3713 - Process 1 start hard drive output on HDD0
-3.39213 - Process 1 start hard drive input on HDD1
-1003.5 - Process 1 end hard drive input on HDD1
-1003.68 - Process 1 start printer output on PRINT0
-1005.43 - Process 1 end printer output on PRINT0
-1007.42 - Process 1: memory allocated at 0x100
-1007.43 - OS: removing process 1
-1007.43 - OS: preparing process 2
-1007.43 - OS: starting process 2
-1007.49 - Process 2 start printer output on PRINT0
-1009.36 - Process 2 end printer output on PRINT0
-1011.33 - Process 2: memory allocated at 0x180
-1011.41 - Process 2 start hard drive input on HDD0
-2013.66 - Process 2 end hard drive input on HDD0
-2013.85 - Process 2 start hard drive output on HDD0
-2013.88 - Process 2 end hard drive output on HDD0
-2014 - Process 2 start hard drive output on HDD0
-4015.18 - Process 2 end hard drive output on HDD0
-4015.31 - Process 2: memory allocated at 0x200
-4015.32 - Process 2: start processing action
-4015.34 - Process 2: end processing action
-4015.41 - Process 2 start printer output on PRINT0
-4016.06 - Process 2 end printer output on PRINT0
-4016.13 - OS: removing process 2
-4016.14 - OS: preparing process 3
-4016.14 - OS: starting process 3
-4016.14 - Process 3: start memory blocking
-4019.01 - Process 3: end memory blocking
-4019.08 - Process 3 start keyboard input
-5019.31 - Process 3 end keyboard input
-5019.4 - Process 3: start memory blocking
-5023.21 - Process 3: end memory blocking
-5023.22 - Process 3: start processing action
-5025.17 - Process 3: end processing action
-5025.18 - Process 3: start processing action
-5025.24 - Process 3: end processing action
-5025.35 - Process 3 start hard drive output on HDD0
-5025.37 - Process 3 end hard drive output on HDD0
-5025.43 - Process 3: start processing action
-5026.16 - Process 3: end processing action
-5026.17 - OS: removing process 3
-5026.17 - Simulator program ending
+0.004224 - Simulator program starting
+0.061049 - OS: preparing process 1
+0.066772 - OS: starting process 1
+0.076003 - Process 1: start processing action
+0.229657 - Process 1: end processing action
+0.598991 - Process 1: memory allocated at 0x80
+0.864859 - Process 1: memory allocated at 0x100
+0.889077 - OS: removing process 1
+0.895187 - OS: preparing process 2
+0.896338 - OS: starting process 2
+0.741645 - Process 2 start printer output on PRINT0
+1.25171 - Process 2 end printer output on PRINT0
+0.741228 - Process 2 start monitor output
+2.62591 - Process 2 start printer output on PRINT0
+2.82511 - Process 2 end monitor output
+3.0328 - Process 2 end printer output on PRINT0
+4.4479 - Process 2: memory allocated at 0x180
+4.71351 - Process 2: memory allocated at 0x200
+4.75329 - Process 2: start processing action
+4.90104 - Process 2: end processing action
+5.09673 - OS: removing process 2
+5.10441 - OS: preparing process 3
+5.10546 - OS: starting process 3
+5.10963 - Process 3: start memory blocking
+5.15947 - Process 3: end memory blocking
+5.21852 - Process 3: start memory blocking
+5.22583 - Process 3 start printer output on PRINT0
+5.23225 - Process 3 start keyboard input
+5.61993 - Process 3 end keyboard input
+5.65924 - Process 3 end printer output on PRINT0
+5.67266 - Process 3: end memory blocking
+5.68834 - Process 3: start processing action
+5.79958 - Process 3: end processing action
+5.82112 - Process 3: start processing action
+6.4828 - Process 3: end processing action
+6.50767 - Process 3: start processing action
+6.62077 - Process 3: end processing action
+6.64221 - OS: removing process 3
+6.64648 - Simulator program ending
