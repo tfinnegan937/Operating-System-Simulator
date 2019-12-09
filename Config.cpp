@@ -92,6 +92,20 @@ void Config::initializeConfigData(map<string, string> parser_output) {
             misc_configuration_details.insert(pair<string, string>(string("hcount"), parser_output.at("Hard drive quantity")));
         }
 
+        if(stoi(parser_output.at("Processor Quantum Number {msec}")) <= 0){
+            throw runtime_error("Quantum number less than zero");
+        }
+        else{
+            misc_configuration_details.insert(pair<string,string>(string("quantum"), parser_output.at("Processor Quantum Number {msec}")));
+        }
+
+        if(parser_output.at("CPU Scheduling Code") != "RR" && parser_output.at("CPU Scheduling Code") != "STR"){
+            throw runtime_error("Invalid CPU Scheduler : " + parser_output.at("CPU Scheduling Code"));
+        }
+        else{
+            misc_configuration_details.insert(pair<string, string>(string("scheduler"), parser_output.at("CPU Scheduling Code")));
+        }
+
         misc_configuration_details.insert(pair<string, string>(string("meta_file_path"), parser_output.at("File Path")));
         misc_configuration_details.insert(pair<string, string>(string("log_file_path"), parser_output.at("Log File Path")));
         misc_configuration_details.insert(pair<string, string>(string("log_type"), parser_output.at("Log")));
