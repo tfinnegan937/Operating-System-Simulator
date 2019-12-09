@@ -6,24 +6,29 @@
 #include <iostream>
 #include <iomanip>
 #include <unistd.h>
+#include <bits/stdc++.h> 
 
 Config * Simulator::program_config;
 nanoseconds Simulator::start_time;
 PCB Simulator::pcb;
 
-pthread_t Simulator::tinput;
-pthread_t Simulator::toutput;
+pthread_t Simulator::keyboard_t;
+pthread_t Simulator::mouse_t;
+pthread_t Simulator::monitor_t;
+pthread_t * Simulator::harddrive_t;
+pthread_t * Simulator::printer_t;
 
 pthread_mutex_t Simulator::printer;
 pthread_mutex_t Simulator::mouse;
 pthread_mutex_t Simulator::keyboard;
 pthread_mutex_t Simulator::monitor;
 pthread_mutex_t Simulator::harddrive;
+pthread_mutex_t Simulator::output_queue_m;
 
 Semaphore Simulator::printer_s;
 Semaphore Simulator::harddrive_s;
 
-queue<string> Simulator::output_queue;
+queue<tuple<float, string>> Simulator::output_queue;
 queue<tuple<char, string, int>> Simulator::print_queue;
 queue<tuple<char, string, int>> Simulator::drive_queue;
 
@@ -31,6 +36,11 @@ queue<tuple<char, string, int>> Simulator::drive_queue;
 int Simulator::handled_processes;
 int Simulator::size;
 
+
+struct HDDThreadBlock{
+    int num_cycles;
+    char io_type;
+};
 
 
 Simulator::Simulator(string config_file_path){
@@ -48,6 +58,9 @@ Simulator::Simulator(string config_file_path){
 
     handled_processes = 0;
 
+    harddrive_t = new pthread_t[stoi(program_config->getMiscConfigDetail("hcount"))];
+    printer_t = new pthread_t[stoi(program_config->getMiscConfigDetail("pcount"))];
+
     delete metadata_parser;
 
     metadata_parser = nullptr;
@@ -62,166 +75,77 @@ float Simulator::getTimeStamp() {
 
     nanoseconds cur_time = time_stamp - start_time;
 
-    return float(cur_time.count())/1000000;
+    return float(cur_time.count()/1000000000.0);
 }
 
-void * Simulator::ProcessOutput(void *outputtype) {
-
-    tuple<char, string, int> * instructionp = (tuple<char, string, int> *) outputtype;
-    tuple<char, string, int> instruction = *instructionp;
+void Simulator::ProcessOutput(tuple<char, string, int> instruction) {
+    HDDThreadBlock * hddblock = (struct HDDThreadBlock*)malloc(sizeof(struct HDDThreadBlock));
+    int * cycles = (int*)malloc(sizeof(*cycles));
 
     string type = get<1>(instruction);
+    *cycles = get<2>(instruction);
+    try {
+        if (type == "hard drive") {
+            hddblock->io_type = 'o';
+            hddblock->num_cycles = *cycles;
+            int hdd_count = harddrive_s.getCount();
 
-    ostringstream start;
-    ostringstream end;
-    int count;
-    if(type == "keyboard"){
-        pthread_mutex_lock(&keyboard);
-    }
-    if(type == "mouse"){
-        pthread_mutex_lock(&mouse);
-    }
+            pthread_create(&harddrive_t[hdd_count], NULL, handleHarddrive, (void*) hddblock);
+            pthread_join(harddrive_t[hdd_count], NULL);
 
-    if(type == "hard drive"){
-        harddrive_s.wait();
-        count = harddrive_s.getCount();
-        if(count == stoi(program_config->getMiscConfigDetail("hcount"))){
-            drive_queue.push(instruction);
-            return (void*)0;
+        }
+
+        else if (type == "monitor") {
+            pthread_create(&monitor_t, NULL, handleMonitor, (void*)cycles);
+            pthread_join(monitor_t, NULL);
+        }
+
+        else if (type == "printer") {
+            int print_count = printer_s.getCount();
+            pthread_create(&printer_t[print_count], NULL, handlePrinter, (void*)cycles);
+            pthread_join(printer_t[print_count], NULL);
+        }
+
+        else{
+            throw runtime_error("Invalid Output Device " + type);
         }
     }
-
-    if(type == "printer"){
-        printer_s.wait();
-        count = printer_s.getCount();
-        if(count == stoi(program_config->getMiscConfigDetail("pcount"))){
-            drive_queue.push(instruction);
-            return (void*)0;
-        }
-    }
-
-    if(type == "monitor"){
-        pthread_mutex_lock(&monitor);
-    }
-    int cycles = get<2>(instruction);
-
-    float time_stamp = getTimeStamp();
-
-    start << setprecision(6) << time_stamp << " - Process " << handled_processes << " start " << type << " output";
-    if(type == "printer"){
-        start << " on PRINT" << count-1;
-    }
-    if(type == "hard drive"){
-        start << " on HDD" << count-1;
-    }
-    start << endl;
-    output_queue.push(start.str());
-    sleep((program_config->getCycleTime(type) * cycles) / 1000.0);
-    time_stamp = getTimeStamp();
-    end << setprecision(6) << time_stamp << " - Process " << handled_processes << " end " << type << " output";
-
-    if(type == "printer"){
-        end << " on PRINT" << count -1;
-    }
-    if(type == "hard drive"){
-        end << " on HDD" << count -1;
-    }
-
-    end << endl;
-    output_queue.push(end.str());
-
-    if(type == "keyboard"){
-        pthread_mutex_unlock(&keyboard);
-    }
-    if(type == "mouse"){
-        pthread_mutex_unlock(&mouse);
-    }
-
-    if(type == "hard drive"){
-        harddrive_s.signal();
-    }
-
-    if(type == "printer"){
-        printer_s.signal();
-    }
-
-    if(type == "monitor"){
-        pthread_mutex_unlock(&monitor);
+    catch(const runtime_error& rtr){
+        cerr << "\nError! " << rtr.what() << endl;
+        exit(EXIT_FAILURE);
     }
 }
 
-void * Simulator::ProcessInput(void *inputtype) {
-    cout << setprecision(6);
-    tuple<char, string, int> * instructionp = (tuple<char, string, int> *) inputtype;
-    tuple<char, string, int> instruction = *instructionp;
-
+void Simulator::ProcessInput(tuple<char, string, int> instruction) {
+    HDDThreadBlock * hddblock = (struct HDDThreadBlock*)malloc(sizeof(struct HDDThreadBlock));
+    int * cycles = (int*)malloc(sizeof(*cycles));
     string type = get<1>(instruction);
-    ostringstream start;
-    ostringstream end;
-    int count;
+    *cycles = get<2>(instruction);
 
-    if(type == "keyboard"){
-        pthread_mutex_lock(&keyboard);
+    try{
+        if (type == "hard drive") {
+            
+            hddblock->io_type = 'i';
+            hddblock->num_cycles = *cycles;
+            int hdd_count = harddrive_s.getCount();
+            pthread_create(&harddrive_t[hdd_count], NULL, handleHarddrive, (void*) hddblock);
+            pthread_join(harddrive_t[hdd_count], NULL);
+        }
+        else if(type == "keyboard"){
+            pthread_create(&keyboard_t, NULL, handleKeyboard, (void*) cycles);
+            pthread_join(keyboard_t, NULL);
+        }
+        else if(type == "Mouse"){
+            pthread_create(&mouse_t, NULL, handleMouse, (void*) cycles);
+            pthread_join(mouse_t, NULL);
+        }
+        else{
+            throw runtime_error("Invalid Input Device " + type);
+        }
     }
-    if(type == "mouse"){
-        pthread_mutex_lock(&mouse);
-    }
-
-    if(type == "hard drive"){
-        harddrive_s.wait();
-        count = harddrive_s.getCount();
-    }
-
-    if(type == "printer"){
-        printer_s.wait();
-        count = printer_s.getCount();
-    }
-
-    if(type == "monitor"){
-        pthread_mutex_lock(&monitor);
-    }
-    int cycles = get<2>(instruction);
-
-    float time_stamp = getTimeStamp();
-
-    start << setprecision(6) << time_stamp << " - Process " << handled_processes << " start " << type << " input";
-    if(type == "printer"){
-        start << " on PRINT" << count - 1;
-    }
-    if(type == "hard drive"){
-        start << " on HDD" << count - 1;
-    }
-    start << endl;
-    output_queue.push(start.str());
-    sleep((program_config->getCycleTime(type) * cycles) / 1000.0);
-    time_stamp = getTimeStamp();
-    end << setprecision(6) << time_stamp << " - Process " << handled_processes << " end " << type << " input";
-
-    if(type == "printer"){
-        end << " on PRINT" << count - 1;
-    }
-    if(type == "hard drive"){
-        end << " on HDD" << count - 1;
-    }
-    end << endl;
-    output_queue.push(end.str());
-    if(type == "keyboard"){
-        pthread_mutex_unlock(&keyboard);
-    }
-    if(type == "mouse"){
-        pthread_mutex_unlock(&mouse);
-    }
-
-    if(type == "hard drive"){
-        harddrive_s.signal();
-    }
-
-    if(type == "printer"){
-        printer_s.signal();
-    }
-
-    if(type == "monitor"){
-        pthread_mutex_unlock(&monitor);
+    catch(const runtime_error& rtr){
+        cerr << "\nError! " << rtr.what() << endl;
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -232,11 +156,17 @@ void Simulator::processProcessRun(tuple<char, string,  int> instruction) {
     float cycles = get<2>(instruction);
     ostringstream start;
     ostringstream end;
-    start << setprecision(6) << getTimeStamp() << " - Process " << handled_processes << ": start processing action\n";
-    output_queue.push(start.str());
-    sleep((program_config->getCycleTime(type) * cycles) / 1000.0);
-    end << setprecision(6) << getTimeStamp() << " - Process " << handled_processes << ": end processing action\n";
-    output_queue.push(end.str());
+    start.precision(6);
+    end.precision(6);
+    start << fixed;
+    end << fixed;
+    float time_stamp = getTimeStamp();
+    start << setprecision(6) << time_stamp << " - Process " << handled_processes << ": start processing action\n";
+    pushToOutput(time_stamp, start.str());
+    std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+    time_stamp = getTimeStamp();
+    end << setprecision(6) << time_stamp << " - Process " << handled_processes << ": end processing action\n";
+    pushToOutput(time_stamp, end.str());
 }
 
 void Simulator::processProcessOperation(tuple<char, string, int> instruction) {
@@ -244,20 +174,32 @@ void Simulator::processProcessOperation(tuple<char, string, int> instruction) {
 
     string type = get<1>(instruction);
     int cycles = get<2>(instruction);
+    float time_stamp;
     ostringstream prep;
+    prep.precision(6);
     ostringstream start;
+    start.precision(6);
     ostringstream remove;
+    remove.precision(6);
+    int process_number = handled_processes;
+    prep << fixed;
+    start << fixed;
+    remove << fixed;
     if(type == "begin"){
         handled_processes++;
-        prep << setprecision(6) << getTimeStamp() << " - OS: preparing process " << handled_processes << endl;
-        output_queue.push(prep.str());
-        start << setprecision(6) << getTimeStamp() << " - OS: starting process " << handled_processes << endl;
-        output_queue.push(start.str());
+        process_number = handled_processes;
+        time_stamp = getTimeStamp();
+        prep << setprecision(6) << time_stamp << " - OS: preparing process " << process_number << endl;
+        pushToOutput(time_stamp, prep.str());
+        time_stamp = getTimeStamp();
+        start << setprecision(6) << time_stamp << " - OS: starting process " << process_number << endl;
+        pushToOutput(time_stamp, start.str());
         pcb.setState("START");
     }
     else{
-        remove << setprecision(6) << getTimeStamp() << " - OS: removing process " << handled_processes << endl;
-        output_queue.push(remove.str());
+        time_stamp = getTimeStamp();
+        remove << setprecision(6) << time_stamp << " - OS: removing process " << process_number << endl;
+        pushToOutput(time_stamp, remove.str());
         pcb.setState("EXIT");
     }
 }
@@ -270,22 +212,32 @@ void Simulator::processMemory(tuple<char, string, int> instruction) {
 
     string mem_space = "0xFF8C"; // Temporary placeholder memory
     ostringstream start;
+    start.precision(6);
     ostringstream end;
+    end.precision(6);
     ostringstream allocate;
+    allocate.precision(6);
+    start << fixed;
+    end << fixed;
+    allocate << fixed;
+    float time_stamp;
 
     if(type == "block"){
-        start << setprecision(6) << getTimeStamp() << " - Process " << handled_processes << ": start memory blocking\n";
-        output_queue.push(start.str());
-        sleep((program_config->getCycleTime(type) * cycles) / 1000.0);
-        end << setprecision(6) << getTimeStamp() << " - Process " << handled_processes << ": end memory blocking\n";
-        output_queue.push(end.str());
+        time_stamp = getTimeStamp();
+        start << setprecision(6) << time_stamp << " - Process " << handled_processes << ": start memory blocking\n";
+        pushToOutput(time_stamp, start.str());
+        std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+        time_stamp = getTimeStamp();
+        end << setprecision(6) << time_stamp << " - Process " << handled_processes << ": end memory blocking\n";
+        pushToOutput(time_stamp, end.str());
     }
     else {
-        sleep((program_config->getCycleTime(type) * cycles) / 1000.0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
 
         cur_mem = cur_mem + stoi(program_config -> getMiscConfigDetail("bsize"));
-        allocate << setprecision(6) << getTimeStamp() << " - Process " << handled_processes << ": memory allocated at 0x" << std::hex << cur_mem << std::dec << endl;
-        output_queue.push(allocate.str());
+        time_stamp = getTimeStamp();
+        allocate << setprecision(6) << time_stamp << " - Process " << handled_processes << ": memory allocated at 0x" << std::hex << cur_mem << std::dec << endl;
+        pushToOutput(time_stamp, allocate.str());
 
     }
 }
@@ -295,19 +247,26 @@ void Simulator::cpuLoop(){
     pthread_mutex_init(&mouse, NULL);
     pthread_mutex_init(&keyboard, NULL);
     pthread_mutex_init(&monitor, NULL);
+    pthread_mutex_init(&output_queue_m, NULL);
     harddrive_s.init(&harddrive, stoi(program_config->getMiscConfigDetail("hcount")));
     printer_s.init(&printer, stoi(program_config->getMiscConfigDetail("pcount")));
 
     start_time = duration_cast<nanoseconds>(system_clock::now().time_since_epoch());
     auto queue_copy = instruction_queue;
     ostringstream start;
+    start.precision(6);
     ostringstream end;
-    start << setprecision(6) << getTimeStamp() << " - Simulator program starting\n";
-    output_queue.push(start.str());
+    end.precision(6);
+    start << fixed;
+    end << fixed;
+    float time_stamp = getTimeStamp();
+    start << setprecision(6) << time_stamp << " - Simulator program starting\n";
+    pushToOutput(time_stamp, start.str());
     tuple<char, string, int> cur_instruction;
-    while(!queue_copy.empty() || !drive_queue.empty() || !print_queue.empty()){
+    while(!queue_copy.empty() /*|| !drive_queue.empty() || !print_queue.empty()*/){
         pcb.setState("RUNNING");
-        if(!drive_queue.empty()){
+        //cout << "Instruction: " << get<0>(cur_instruction) << " " << get<1>(cur_instruction) << " " << get<2>(cur_instruction) << endl;
+        /*if(!drive_queue.empty()){
             if (harddrive_s.getCount() < stoi(program_config->getMiscConfigDetail("hcount"))){
                 cur_instruction = drive_queue.front();
                 drive_queue.pop();
@@ -336,10 +295,10 @@ void Simulator::cpuLoop(){
         else{
             if(queue_copy.empty()){
                 break;
-            }
+            }*/
             cur_instruction = queue_copy.front();
             queue_copy.pop();
-        }
+        //}
         string type = get<1>(cur_instruction);
         switch(get<0>(cur_instruction)){
             case 'A':
@@ -350,14 +309,12 @@ void Simulator::cpuLoop(){
                 break;
             case 'I':
                 pcb.setState("WAITING");
-                pthread_create(&tinput, NULL, ProcessInput, &cur_instruction);
-                pthread_join(tinput, NULL);
+                ProcessInput(cur_instruction);
                 pcb.setState("READY");
                 break;
             case 'O':
                 pcb.setState("WAITING");
-                pthread_create(&toutput, NULL, ProcessOutput, &cur_instruction);
-                pthread_join(tinput, NULL);
+                ProcessOutput(cur_instruction);
                 pcb.setState("READY");
                 break;
             case 'M':
@@ -367,10 +324,11 @@ void Simulator::cpuLoop(){
         }
 
     }
-    pthread_join(tinput, NULL);
-    pthread_join(toutput, NULL);
-    end << setprecision(6) << getTimeStamp() << " - Simulator program ending\n";
-    output_queue.push(end.str());
+    /*pthread_join(tinput, NULL);
+    pthread_join(toutput, NULL);*/
+    time_stamp = getTimeStamp();
+    end << setprecision(6) << time_stamp << " - Simulator program ending\n";
+    pushToOutput(time_stamp, end.str());
 }
 
 void Simulator::run(){
@@ -445,11 +403,21 @@ void Simulator::logToMonitor(queue<tuple<char, string, int>> queue_copy){
 
 
     }
-    queue<string> output = output_queue;
+    queue<tuple<float, string>> output = output_queue;
+    vector<tuple<float, string>> output_v;
     while(!output.empty()){
-        cout << output.front();
+        output_v.push_back(output.front());
         output.pop();
     }
+
+
+    sort(output_v.begin(), output_v.end());
+    for(int i = 0; i < output_v.size(); i++){
+        cout << get<1>(output_v[i]);
+    }
+
+
+
 }
 
 void Simulator::logToFile(queue<tuple<char, string, int>> queue_copy){
@@ -515,11 +483,163 @@ void Simulator::logToFile(queue<tuple<char, string, int>> queue_copy){
 
 
     }
-    queue<string> output = output_queue;
+    queue<tuple<float, string>> output = output_queue;
+    vector<tuple<float, string>> output_v;
     while(!output.empty()){
-        fout << output.front();
+        output_v.push_back(output.front());
         output.pop();
-    }
-    fout.close();
+       }
 
+    sort(output_v.begin(), output_v.end());
+    for(int i = 0; i < output_v.size(); i++){
+        fout << get<1>(output_v[i]);
+    }
+
+
+}
+
+void * Simulator::handleKeyboard(void * num_cycles){
+    pthread_mutex_lock(&keyboard);
+    string type = "keyboard";
+    ostringstream start;
+    start.precision(6);
+    ostringstream end;
+    end.precision(6);
+    start << fixed;
+    end << fixed;
+    int * data_pointer = (int*) num_cycles;
+    int cycles = *data_pointer;
+    float time_stamp = getTimeStamp();
+
+
+    start << setprecision(6) << time_stamp << " - Process " << handled_processes << " start " << type << " input" << endl;
+    pushToOutput(time_stamp, start.str());
+    std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+    time_stamp = getTimeStamp();
+    end << setprecision(6) << time_stamp << " - Process " << handled_processes << " end " << type << " input" << endl;
+    pushToOutput(time_stamp, end.str());
+    pthread_mutex_unlock(&keyboard);
+
+}
+
+void * Simulator::handleMouse(void * num_cycles){
+    pthread_mutex_lock(&mouse);
+    string type = "mouse";
+    ostringstream start;
+    start.precision(6);
+    ostringstream end;
+    end.precision(6);
+    start << fixed;
+    end << fixed;
+    int * data_pointer = (int*) num_cycles;
+    int cycles = *data_pointer;
+
+    float time_stamp = getTimeStamp();
+
+
+    start << setprecision(6) << time_stamp << " - Process " << handled_processes << " start " << type << " input" << endl;
+    pushToOutput(time_stamp, start.str());
+    std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+    time_stamp = getTimeStamp();
+    end << setprecision(6) << time_stamp << " - Process " << handled_processes << " end " << type << " input" << endl;
+    pushToOutput(time_stamp, end.str());
+    pthread_mutex_unlock(&mouse);
+}
+
+void * Simulator::handleMonitor(void * num_cycles){
+    pthread_mutex_lock(&monitor);
+    string type = "monitor";
+    ostringstream start;
+    start.precision(6);
+    ostringstream end;
+    end.precision(6);
+    start << fixed;
+    end << fixed;
+    int * data_pointer = (int*) num_cycles;
+    int cycles = *data_pointer;
+
+    float time_stamp = getTimeStamp();
+
+
+    start << setprecision(6) << time_stamp << " - Process " << handled_processes << " start " << type << " output" << endl;
+    pushToOutput(time_stamp, start.str());
+    std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+    time_stamp = getTimeStamp();
+    end << setprecision(6) << time_stamp << " - Process " << handled_processes << " end " << type << " output" << endl;
+    pushToOutput(time_stamp, end.str());
+    pthread_mutex_unlock(&monitor);
+}
+
+void * Simulator::handlePrinter(void * num_cycles){
+    int printer_num = printer_s.getCount();
+    printer_s.wait();
+    string type = "printer";
+    ostringstream start;
+    start.precision(6);
+    ostringstream end;
+    end.precision(6);
+    start << fixed;
+    end << fixed;
+    int process_number = handled_processes;
+    int * data_pointer = (int*) num_cycles;
+    int cycles = *data_pointer;
+
+    float time_stamp = getTimeStamp();
+
+
+    start << setprecision(6) << time_stamp << " - Process " << process_number << " start " << type << " output on PRINT" << printer_num << endl;
+    pushToOutput(time_stamp, start.str());
+    std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+    time_stamp = getTimeStamp();
+    end << setprecision(6) << time_stamp << " - Process " << process_number << " end " << type << " output on PRINT" << printer_num << endl;
+    pushToOutput(time_stamp, end.str());
+
+    printer_s.signal();
+}
+
+void * Simulator::handleHarddrive(void * hdd_block){
+    HDDThreadBlock * hdd_thread_block_p = (HDDThreadBlock* ) hdd_block;
+    HDDThreadBlock hdd_thread_block = *hdd_thread_block_p;
+    int hdd_num = harddrive_s.getCount();
+    int process_number = handled_processes;
+    harddrive_s.wait();
+    string type = "hard drive";
+    ostringstream start;
+    start.precision(6);
+    ostringstream end;
+    end.precision(6);
+    start << fixed;
+    end << fixed;
+
+
+    int cycles = hdd_thread_block.num_cycles;
+    //cout << cycles << endl;
+    string io_type;
+
+    if(hdd_thread_block.io_type == 'i'){
+        io_type = "input";
+    }
+    else{
+        io_type = "output";
+    }
+    //cout << io_type << endl;
+    //cout << hdd_thread_block.io_type << endl;
+    float time_stamp = getTimeStamp();
+
+
+    start << setprecision(6) << time_stamp << " - Process " << process_number << " start " << type << " " << io_type<< " on HDD" << hdd_num << endl;
+    pushToOutput(time_stamp, start.str());
+    std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+    time_stamp = getTimeStamp();
+    end << setprecision(6) << time_stamp << " - Process " << process_number << " end " << type << " " << io_type << " on HDD" << hdd_num << endl;
+    pushToOutput(time_stamp, end.str());
+
+    harddrive_s.signal();
+}
+
+void Simulator::pushToOutput(float time_stamp, string s){
+    pthread_mutex_lock(&output_queue_m);
+    tuple<float, string> output = {time_stamp, s};
+    output_queue.push(output);
+    pthread_mutex_unlock(&output_queue_m);
 }

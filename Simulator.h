@@ -54,7 +54,7 @@ private:
     queue<tuple<char, string, int>> instruction_queue;
     static queue<tuple<char, string, int>> drive_queue;
     static queue<tuple<char, string, int>> print_queue;
-    static queue<string> output_queue;
+    static queue<tuple<float, string>> output_queue;
     static nanoseconds start_time;
     static int size;
     static PCB pcb;
@@ -83,7 +83,7 @@ private:
     static void * handleMouse(void * num_cycles);
     static void * handleKeyboard(void * num_cycles);
 
-    static void pushToOutput(string s);
+    static void pushToOutput(float time_stamp, string s);
 
     long int cur_mem;
     void processMemory(tuple<char, string, int> instruction);
