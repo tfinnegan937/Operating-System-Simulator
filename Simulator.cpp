@@ -260,7 +260,7 @@ void Simulator::cpuLoop(){
     start << fixed;
     end << fixed;
     float time_stamp = getTimeStamp();
-    start << setprecision(6) << time_stamp << " - Simulator program starting\n";
+    start << setprecision(6) << 0.0 << " - Simulator program starting\n";
     pushToOutput(time_stamp, start.str());
     tuple<char, string, int> cur_instruction;
     while(!queue_copy.empty() /*|| !drive_queue.empty() || !print_queue.empty()*/){

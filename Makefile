@@ -4,7 +4,7 @@ CFlags =  -fpthread
 
 SOURCES = ./main.cpp ./config_parser.cpp ./Config.cpp ./input_parser.cpp ./Simulator.cpp ./PCB.cpp ./Semaphore.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
-TARGET = assignment3
+TARGET = assignment5
 
 $(TARGET):
 	$(CC) -g -O0 -std=c++14 -pthread -o $@ $(SOURCES)
