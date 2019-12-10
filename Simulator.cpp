@@ -25,6 +25,8 @@ pthread_mutex_t Simulator::monitor;
 pthread_mutex_t Simulator::harddrive;
 pthread_mutex_t Simulator::output_queue_m;
 
+vector<Process> Simulator::active_processes;
+
 Semaphore Simulator::printer_s;
 Semaphore Simulator::harddrive_s;
 
@@ -244,25 +246,32 @@ void Simulator::processMemory(tuple<char, string, int> instruction) {
 
 void Simulator::cpuLoop(){
     cout << setprecision(6);
+
     pthread_mutex_init(&mouse, NULL);
     pthread_mutex_init(&keyboard, NULL);
     pthread_mutex_init(&monitor, NULL);
     pthread_mutex_init(&output_queue_m, NULL);
+
     harddrive_s.init(&harddrive, stoi(program_config->getMiscConfigDetail("hcount")));
     printer_s.init(&printer, stoi(program_config->getMiscConfigDetail("pcount")));
 
     start_time = duration_cast<nanoseconds>(system_clock::now().time_since_epoch());
+
     auto queue_copy = instruction_queue;
+
     ostringstream start;
     start.precision(6);
     ostringstream end;
     end.precision(6);
     start << fixed;
     end << fixed;
+
     float time_stamp = getTimeStamp();
     start << setprecision(6) << 0.0 << " - Simulator program starting\n";
     pushToOutput(time_stamp, start.str());
+
     tuple<char, string, int> cur_instruction;
+
     while(!queue_copy.empty() /*|| !drive_queue.empty() || !print_queue.empty()*/){
         pcb.setState("RUNNING");
         //cout << "Instruction: " << get<0>(cur_instruction) << " " << get<1>(cur_instruction) << " " << get<2>(cur_instruction) << endl;
@@ -642,4 +651,38 @@ void Simulator::pushToOutput(float time_stamp, string s){
     tuple<float, string> output = {time_stamp, s};
     output_queue.push(output);
     pthread_mutex_unlock(&output_queue_m);
+}
+
+void Simulator::populateProcessVector(){
+    auto queue_copy = instruction_queue;
+
+    //Remove any instructions that are not part of a process
+    while(get<0>(queue_copy.front()) != 'A'){
+        queue_copy.pop();
+    }
+
+    while(!queue_copy.empty()){
+        if(get<0>(queue_copy.front()) == 'S'){
+            queue_copy.pop();
+        }
+
+        queue<tuple<char, string, int>> cur_process;
+        while(get<1>(queue_copy.front()) != "finish"){
+            cur_process.push(queue_copy.front());
+            queue_copy.pop();
+        }
+
+        if(get<1>(queue_copy.front()) == "finish"){
+            cur_process.push(queue_copy.front());
+            queue_copy.pop();
+        }
+
+        Process out_proc(cur_process, program_config);
+        //active_processes.push_back(out_proc);
+    }
+
+
+
+   // while()
+
 }

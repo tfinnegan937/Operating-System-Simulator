@@ -19,11 +19,15 @@ int Process::getTimeRemaining() const{
     return time_remaining;
 }
 
-Process::Process(queue<tuple<char, string, int> instructions, Config * program_config){
+Process::Process(queue<tuple<char, string, int>> instructions, Config * program_config){
     while(!instructions.empty()){
         front = instructions.front();
         time_remaining += get<2>(front) * program_config->getCycleTime(get<1>(front));
         instruction_queue.push_back(front);
         instructions.pop();
     }
+}
+
+Process::Process(){
+
 }

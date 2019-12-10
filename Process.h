@@ -11,9 +11,10 @@
 #include "Config.h"
 class Process {
 private:
-    vector<tuple<char, string, int> instruction_queue;
+    vector<tuple<char, string, int>> instruction_queue;
     int time_remaining;
 public:
+    Process();
     Process(queue<tuple<char, string, int>> instructions, Config * program_config);
     int getTimeRemaining() const;
     tuple<char, string, int> getNextInstruction(Config * program_config);

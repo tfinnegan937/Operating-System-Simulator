@@ -46,33 +46,47 @@ File Purpose: To define the Simulator class that serves as the body of the progr
 #include <pthread.h>
 #include <chrono>
 #include <string>
+#include "Process.h"
 using namespace std::chrono;
 
 class Simulator {
 private:
     static Config * program_config;
+
     queue<tuple<char, string, int>> instruction_queue;
     static queue<tuple<char, string, int>> drive_queue;
     static queue<tuple<char, string, int>> print_queue;
     static queue<tuple<float, string>> output_queue;
+
+    static vector<Process> active_processes;
+
     static nanoseconds start_time;
     static int size;
     static PCB pcb;
+    static Process current_process;
+
     static pthread_t keyboard_t;
     static pthread_t mouse_t;
     static pthread_t monitor_t;
     static pthread_t * harddrive_t;
     static pthread_t * printer_t;
+    static pthread_t load_t; //Thread for reloading metadata
+    static pthread_t quatum_t; //Thread for counting for quantum.
+
     static pthread_mutex_t keyboard;
     static pthread_mutex_t mouse;
     static pthread_mutex_t monitor;
     static pthread_mutex_t harddrive;
     static pthread_mutex_t printer;
     static pthread_mutex_t output_queue_m;
+
     static Semaphore harddrive_s;
     static Semaphore printer_s;
+
     static int handled_processes;
+
     static string file_output;
+
     static float getTimeStamp();
     void ProcessInput(tuple<char, string, int> instruction);
     void ProcessOutput(tuple<char, string, int> instruction);
@@ -92,6 +106,8 @@ private:
     void logToBoth(queue<tuple<char, string, int>> queue_copy);
     void logToMonitor(queue<tuple<char, string, int>> queue_copy);
     void logToFile(queue<tuple<char, string, int>> queue_copy);
+
+    void populateProcessVector();
 
     static void outputOperationLog(float time_stamp, string tag, string operation);
 
