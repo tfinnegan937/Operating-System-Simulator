@@ -271,7 +271,7 @@ void Simulator::cpuLoop(){
     pushToOutput(time_stamp, start.str());
 
     tuple<char, string, int> cur_instruction;
-
+    populateProcessVector();
     while(!queue_copy.empty() /*|| !drive_queue.empty() || !print_queue.empty()*/){
         pcb.setState("RUNNING");
         //cout << "Instruction: " << get<0>(cur_instruction) << " " << get<1>(cur_instruction) << " " << get<2>(cur_instruction) << endl;
@@ -677,12 +677,30 @@ void Simulator::populateProcessVector(){
             queue_copy.pop();
         }
 
-        Process out_proc(cur_process, program_config);
-        //active_processes.push_back(out_proc);
+        Process  out_proc(&cur_process, program_config);
+        if(get<0>(queue_copy.front()) == 'S'){
+            queue_copy.pop();
+        }
+
+
+        active_processes.push_back(out_proc);
     }
 
+    /*int i = 0;
+
+    while(!active_processes.empty()){
+        i = i + 1;
+        auto proc = active_processes.front();
+        active_processes.erase(active_processes.begin());
+        cout << "Process " << i << endl;
+        while(!proc.empty()){
+            auto ins = proc.getNextInstruction(program_config);
+
+            cout << "Instruction " << get<0>(ins) << " " << get<1>(ins) << " " << get<2>(ins) << endl;
+        }
+    }*/
 
 
-   // while()
+
 
 }

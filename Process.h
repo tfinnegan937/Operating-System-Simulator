@@ -15,10 +15,10 @@ private:
     int time_remaining;
 public:
     Process();
-    Process(queue<tuple<char, string, int>> instructions, Config * program_config);
+    Process(queue<tuple<char, string, int>> * instructions, Config * program_config);
     int getTimeRemaining() const;
     tuple<char, string, int> getNextInstruction(Config * program_config);
-    bool empty();
+    bool empty() const;
 
 };
 

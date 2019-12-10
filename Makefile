@@ -2,7 +2,7 @@ CC = g++
 
 CFlags =  -fpthread
 
-SOURCES = ./main.cpp ./config_parser.cpp ./Config.cpp ./input_parser.cpp ./Simulator.cpp ./PCB.cpp ./Semaphore.cpp
+SOURCES = ./main.cpp ./config_parser.cpp ./Config.cpp ./input_parser.cpp ./Simulator.cpp ./PCB.cpp ./Semaphore.cpp ./Process.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 TARGET = assignment5
 
