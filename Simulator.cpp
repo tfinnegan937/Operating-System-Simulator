@@ -654,19 +654,6 @@ void Simulator::populateProcessVector(){
         active_processes.push_back(out_proc);
     }
 
-    /*int i = 0;
-
-    while(!active_processes.empty()){
-        i = i + 1;
-        auto proc = active_processes.front();
-        active_processes.erase(active_processes.begin());
-        cout << "Process " << i << endl;
-        while(!proc.empty()){
-            auto ins = proc.getNextInstruction(program_config);
-
-            cout << "Instruction " << get<0>(ins) << " " << get<1>(ins) << " " << get<2>(ins) << endl;
-        }
-    }*/
 
 }
 
