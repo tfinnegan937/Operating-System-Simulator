@@ -274,40 +274,8 @@ void Simulator::cpuLoop(){
     populateProcessVector();
     while(!queue_copy.empty() /*|| !drive_queue.empty() || !print_queue.empty()*/){
         pcb.setState("RUNNING");
-        //cout << "Instruction: " << get<0>(cur_instruction) << " " << get<1>(cur_instruction) << " " << get<2>(cur_instruction) << endl;
-        /*if(!drive_queue.empty()){
-            if (harddrive_s.getCount() < stoi(program_config->getMiscConfigDetail("hcount"))){
-                cur_instruction = drive_queue.front();
-                drive_queue.pop();
-            }
-            else{
-                if(queue_copy.empty()){
-                    break;
-                }
-                cur_instruction = queue_copy.front();
-                queue_copy.pop();
-            }
-        }
-        else if(!print_queue.empty()){
-            if (printer_s.getCount() < stoi(program_config->getMiscConfigDetail("pcount"))){
-                cur_instruction = print_queue.front();
-                print_queue.pop();
-            }
-            else{
-                if(queue_copy.empty()){
-                    break;
-                }
-                cur_instruction = queue_copy.front();
-                queue_copy.pop();
-            }
-        }
-        else{
-            if(queue_copy.empty()){
-                break;
-            }*/
-            cur_instruction = queue_copy.front();
-            queue_copy.pop();
-        //}
+        cur_instruction = queue_copy.front();
+        queue_copy.pop();
         string type = get<1>(cur_instruction);
         switch(get<0>(cur_instruction)){
             case 'A':
@@ -700,7 +668,8 @@ void Simulator::populateProcessVector(){
         }
     }*/
 
+}
 
-
+void Simulator::executeInstruction(Process * cur_proc){
 
 }

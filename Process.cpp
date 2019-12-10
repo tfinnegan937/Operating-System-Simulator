@@ -12,6 +12,8 @@ bool Process::empty() const {
 tuple<char, string, int> Process::getNextInstruction(Config * program_config){
     if(cur_instruction_time_remaining.count() == 0){
         instruction_queue.erase(instruction_queue.begin());
+        cur_instruction_time_remaining =cur_instruction_time_remaining = std::chrono::milliseconds(
+                int(get<2>(instruction_queue.front()) * program_config->getCycleTime(get<1>(instruction_queue.front()))));
     }
     tuple<char, string, int> front = instruction_queue.front();
     if(get<1>(front) != "begin" && get<1>(front) != "finish") {

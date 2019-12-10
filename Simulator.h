@@ -63,7 +63,7 @@ private:
     static nanoseconds start_time;
     static int size;
     static PCB pcb;
-    static Process current_process;
+    static Process * current_process;
 
     static pthread_t keyboard_t;
     static pthread_t mouse_t;
@@ -84,6 +84,10 @@ private:
     static Semaphore printer_s;
 
     static int handled_processes;
+
+    static bool arrival_interrupt; //Quiet interrupt. Pauses execution upon process arrival to check for shorter process. May cause lower_time_interrupt.
+    static bool quantum_interrupt; //Interrupts to switch to another process at end of quantum
+    static bool lower_time_interrupt; //Interrupts if the shortest process becomes the next shortest.
 
     static string file_output;
 
@@ -108,6 +112,8 @@ private:
     void logToFile(queue<tuple<char, string, int>> queue_copy);
 
     void populateProcessVector();
+
+    void executeInstruction(Process * cur_proc);
 
     static void outputOperationLog(float time_stamp, string tag, string operation);
 
