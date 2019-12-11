@@ -71,7 +71,8 @@ private:
     static pthread_t * harddrive_t;
     static pthread_t * printer_t;
     static pthread_t load_t; //Thread for reloading metadata
-    static pthread_t quatum_t; //Thread for counting for quantum.
+    static pthread_t quantum_t; //Thread for counting for quantum.
+    static pthread_t shorter_t; //Thread for checking if a shorter process has arrived
 
     static pthread_mutex_t keyboard;
     static pthread_mutex_t mouse;
@@ -124,5 +125,6 @@ public:
     void run();
 };
 
+milliseconds interruptableWait(milliseconds wait_time, bool * qinterrupt, bool * linterrupt);
 
 #endif //ASSIGNMENT_1_SIMULATOR_H

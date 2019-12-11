@@ -29,6 +29,8 @@ vector<Process> Simulator::active_processes;
 
 Semaphore Simulator::printer_s;
 Semaphore Simulator::harddrive_s;
+bool Simulator::quantum_interrupt;
+bool Simulator::lower_time_interrupt;
 
 queue<tuple<float, string>> Simulator::output_queue;
 queue<tuple<char, string, int>> Simulator::print_queue;
@@ -165,7 +167,7 @@ void Simulator::processProcessRun(tuple<char, string,  int> instruction) {
     float time_stamp = getTimeStamp();
     start << setprecision(6) << time_stamp << " - Process " << handled_processes << ": start processing action\n";
     pushToOutput(time_stamp, start.str());
-    std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+    interruptableWait(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)), &quantum_interrupt, &lower_time_interrupt );
     time_stamp = getTimeStamp();
     end << setprecision(6) << time_stamp << " - Process " << handled_processes << ": end processing action\n";
     pushToOutput(time_stamp, end.str());
@@ -228,13 +230,13 @@ void Simulator::processMemory(tuple<char, string, int> instruction) {
         time_stamp = getTimeStamp();
         start << setprecision(6) << time_stamp << " - Process " << handled_processes << ": start memory blocking\n";
         pushToOutput(time_stamp, start.str());
-        std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+        interruptableWait(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)), &quantum_interrupt, &lower_time_interrupt );
         time_stamp = getTimeStamp();
         end << setprecision(6) << time_stamp << " - Process " << handled_processes << ": end memory blocking\n";
         pushToOutput(time_stamp, end.str());
     }
     else {
-        std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+        interruptableWait(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)), &quantum_interrupt, &lower_time_interrupt );
 
         cur_mem = cur_mem + stoi(program_config -> getMiscConfigDetail("bsize"));
         time_stamp = getTimeStamp();
@@ -491,7 +493,7 @@ void * Simulator::handleKeyboard(void * num_cycles){
 
     start << setprecision(6) << time_stamp << " - Process " << handled_processes << " start " << type << " input" << endl;
     pushToOutput(time_stamp, start.str());
-    std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+    interruptableWait(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)), &quantum_interrupt, &lower_time_interrupt );
     time_stamp = getTimeStamp();
     end << setprecision(6) << time_stamp << " - Process " << handled_processes << " end " << type << " input" << endl;
     pushToOutput(time_stamp, end.str());
@@ -516,7 +518,7 @@ void * Simulator::handleMouse(void * num_cycles){
 
     start << setprecision(6) << time_stamp << " - Process " << handled_processes << " start " << type << " input" << endl;
     pushToOutput(time_stamp, start.str());
-    std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+    interruptableWait(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)), &quantum_interrupt, &lower_time_interrupt );
     time_stamp = getTimeStamp();
     end << setprecision(6) << time_stamp << " - Process " << handled_processes << " end " << type << " input" << endl;
     pushToOutput(time_stamp, end.str());
@@ -540,7 +542,7 @@ void * Simulator::handleMonitor(void * num_cycles){
 
     start << setprecision(6) << time_stamp << " - Process " << handled_processes << " start " << type << " output" << endl;
     pushToOutput(time_stamp, start.str());
-    std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+    interruptableWait(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)), &quantum_interrupt, &lower_time_interrupt );
     time_stamp = getTimeStamp();
     end << setprecision(6) << time_stamp << " - Process " << handled_processes << " end " << type << " output" << endl;
     pushToOutput(time_stamp, end.str());
@@ -566,7 +568,7 @@ void * Simulator::handlePrinter(void * num_cycles){
 
     start << setprecision(6) << time_stamp << " - Process " << process_number << " start " << type << " output on PRINT" << printer_num << endl;
     pushToOutput(time_stamp, start.str());
-    std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+    interruptableWait(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)), &quantum_interrupt, &lower_time_interrupt );
     time_stamp = getTimeStamp();
     end << setprecision(6) << time_stamp << " - Process " << process_number << " end " << type << " output on PRINT" << printer_num << endl;
     pushToOutput(time_stamp, end.str());
@@ -606,7 +608,7 @@ void * Simulator::handleHarddrive(void * hdd_block){
 
     start << setprecision(6) << time_stamp << " - Process " << process_number << " start " << type << " " << io_type<< " on HDD" << hdd_num << endl;
     pushToOutput(time_stamp, start.str());
-    std::this_thread::sleep_for(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)) );
+    interruptableWait(std::chrono::milliseconds(int(program_config->getCycleTime(type) * cycles)), &quantum_interrupt, &lower_time_interrupt );
     time_stamp = getTimeStamp();
     end << setprecision(6) << time_stamp << " - Process " << process_number << " end " << type << " " << io_type << " on HDD" << hdd_num << endl;
     pushToOutput(time_stamp, end.str());
@@ -657,6 +659,17 @@ void Simulator::populateProcessVector(){
 
 }
 
-void Simulator::executeInstruction(Process * cur_proc){
+milliseconds interruptableWait(milliseconds time_wait, bool* qinterrupt, bool * linterrupt){
+    milliseconds start_time = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+    milliseconds cur_time = start_time;
 
+    while( (cur_time - start_time < time_wait) && !*qinterrupt && !*linterrupt){
+        cur_time = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+    }
+
+    if(cur_time - start_time >= time_wait){
+        return std::chrono::milliseconds(0);
+    }
+
+    return cur_time - start_time;
 }
