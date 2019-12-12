@@ -101,10 +101,12 @@ private:
     static void * handleMonitor(void * num_cycles);
     static void * handleMouse(void * num_cycles);
     static void * handleKeyboard(void * num_cycles);
+    static void * handleQuantum(void * n);
 
     static void pushToOutput(float time_stamp, string s);
 
     long int cur_mem;
+    static int process_index;
     void processMemory(tuple<char, string, int> instruction);
     void processProcessRun(tuple<char, string, int> instruction);
     void processProcessOperation(tuple<char, string, int> instruction);
@@ -114,11 +116,17 @@ private:
 
     void populateProcessVector();
 
-    void executeInstruction(Process * cur_proc);
+    void executeInstruction();
 
     static void outputOperationLog(float time_stamp, string tag, string operation);
 
     void cpuLoop();
+    void rrExec();
+    void strExec();
+
+    void rrHandleInterrupt();
+    void strHandleInterrupt();
+    bool allEmpty();
 
 public:
     Simulator(string config_file_path);

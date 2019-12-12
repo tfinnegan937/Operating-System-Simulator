@@ -20,9 +20,12 @@ public:
     Process();
     Process(queue<tuple<char, string, int>> * instructions, Config * program_config);
     int getTimeRemaining() const;
-    void decCurTimeRemaining(int cur_instruction_time);
+    void setCurTimeRemaining(std::chrono::milliseconds cur_instruction_time);
+    int getCurInsTimeRemaining();
     tuple<char, string, int> getNextInstruction(Config * program_config);
+    void popEmptyInstruction(Config * program_config);
     bool empty() const;
+    void suspend();
 
 };
 

@@ -6,28 +6,40 @@
 #include <iostream>
 using namespace std;
 bool Process::empty() const {
+    if(instruction_queue.empty()){
+        //cout << "EMPTY!\n";
+    }
+    else{
+        //cout << "Instruction type " << get<1>(instruction_queue.front()) << endl;
+    }
     return instruction_queue.empty();
 }
 
 tuple<char, string, int> Process::getNextInstruction(Config * program_config){
-    if(cur_instruction_time_remaining.count() == 0){
-        instruction_queue.erase(instruction_queue.begin());
-        cur_instruction_time_remaining =cur_instruction_time_remaining = std::chrono::milliseconds(
-                int(get<2>(instruction_queue.front()) * program_config->getCycleTime(get<1>(instruction_queue.front()))));
-    }
     tuple<char, string, int> front = instruction_queue.front();
-    if(get<1>(front) != "begin" && get<1>(front) != "finish") {
-        time_remaining -= get<2>(front) * program_config->getCycleTime(get<1>(front));
-    }
     return front;
 }
 
-int Process::getTimeRemaining() const{
-    return time_remaining;
+int Process::getCurInsTimeRemaining(){
+    return cur_instruction_time_remaining.count();
 }
 
-void Process::decCurTimeRemaining(int cur_instruction_time) {
-    cur_instruction_time_remaining -= std::chrono::milliseconds(cur_instruction_time);
+int Process::getTimeRemaining() const{
+    return time_remaining + cur_instruction_time_remaining.count();
+}
+
+void Process::setCurTimeRemaining(std::chrono::milliseconds cur_time) {
+    cur_instruction_time_remaining = cur_time;
+}
+
+void Process::popEmptyInstruction(Config * program_config){
+    instruction_queue.erase(instruction_queue.begin());
+    auto front = instruction_queue.front();
+    if(get<1>(front) != "begin" && get<1>(front) != "finish") {
+        cur_instruction_time_remaining = std::chrono::milliseconds(
+                get<2>(front) * program_config->getCycleTime(get<1>(front)));
+        time_remaining -= get<2>(front) * program_config->getCycleTime(get<1>(front));
+    }
 }
 
 Process::Process(queue<tuple<char, string, int>> * instructions, Config * program_config){
@@ -51,6 +63,14 @@ Process::Process(queue<tuple<char, string, int>> * instructions, Config * progra
     else{
         cur_instruction_time_remaining = std::chrono::milliseconds(0);
     }
+
+    if(get<1>(final_front) != "begin" && get<1>(final_front) != "finish") {
+        time_remaining -= get<2>(final_front) * program_config->getCycleTime(get<1>(final_front));
+    }
+}
+
+void Process::suspend(){
+    //instruction_queue.insert(instruction_queue.begin(), {'A', "Begin", 0});
 }
 
 Process::Process(){
